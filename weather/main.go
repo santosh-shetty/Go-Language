@@ -25,7 +25,7 @@ func main() {
 		return
 	}
 
-	apiKey := "8656581730a2a59b56595237358d823d"
+	// apiKey := ""
 	city := scanner.Text()
 	apiUrl := fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?q=%s&appid=%s", city, apiKey)
 
