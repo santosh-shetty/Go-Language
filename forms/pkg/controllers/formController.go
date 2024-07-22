@@ -3,7 +3,9 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -92,17 +94,18 @@ func Register(res http.ResponseWriter, req *http.Request) {
 		// if err := json.NewDecoder(req.Body).Decode(&user); err != nil {
 		// 	http.Error(res, err.Error(), http.StatusBadRequest)
 		// 	return
-
 		hashPass, err := bcrypt.GenerateFromPassword([]byte(req.FormValue("password")), 14)
 		if err != nil {
 			res.WriteHeader(http.StatusBadGateway)
 			json.NewEncoder(res).Encode(map[string]string{"message": "Failed to Register!"})
 			return
 		}
+		imagePath := UploadImage(res, req)
 		user := models.User{
 			Name:     req.FormValue("name"),
 			Email:    req.FormValue("email"),
 			Password: string(hashPass),
+			Profile:  imagePath,
 		}
 		createdUser := user.RegisterUser()
 		res.Header().Set("Content-Type", "application/json")
@@ -111,6 +114,43 @@ func Register(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func UploadImage(res http.ResponseWriter, req *http.Request) string {
+	var imagePath string
+	// Validate size of file
+	req.ParseMultipartForm(10 << 20)
+
+	// Get File From form
+	file, handler, err2 := req.FormFile("image")
+	if err2 != nil {
+		fmt.Println(err2)
+		res.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(res).Encode(map[string]string{"message": "Failed to Parse File!"})
+		return ""
+	}
+	defer file.Close()
+
+	// Create File
+	des, err3 := os.Create(filepath.Join("assets/uploads", handler.Filename))
+	imagePath = "assets/uploads" + handler.Filename
+	if err3 != nil {
+		fmt.Println(err3)
+		res.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(res).Encode(map[string]string{"message": "Failed to Create File!"})
+		return ""
+	}
+	defer des.Close()
+
+	// Store File
+	_, err5 := io.Copy(des, file)
+	if err5 != nil {
+		fmt.Println(err5)
+		res.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(res).Encode(map[string]string{"message": "Failed to Store File!"})
+		return ""
+	}
+	return imagePath
+
+}
 func Home(res http.ResponseWriter, req *http.Request) {
 	http.ServeFile(res, req, filepath.Join("views", "index.html"))
 	// http.ServeFile(res, req, filepath.Join("views/auth", "register.html"))
